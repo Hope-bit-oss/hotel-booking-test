@@ -1,0 +1,78 @@
+import requests
+import pytest
+
+BASE_URL = "https://restful-booker.herokuapp.com"
+
+@pytest.fixture
+def auth_token():
+    response = requests.post(f"{BASE_URL}/auth", json={
+        "username": "admin",
+        "password": "password123"
+    })
+    assert response.status_code == 200
+    return response.json()["token"]
+
+# Auth tests
+def test_auth_success():
+    response = requests.post(f"{BASE_URL}/auth", json={
+        "username": "admin",
+        "password": "password123"
+    })
+    assert response.status_code == 200
+    assert "token" in response.json()
+
+def test_auth_failure():
+    response = requests.post(f"{BASE_URL}/auth", json={
+        "username": "wrong_user",
+        "password": "wrong_pass"
+    })
+    assert response.status_code == 403
+
+# Booking - CreateBooking tests
+def test_create_booking_success():
+    booking_data = {
+        "firstname": "Jim",
+        "lastname": "Brown",
+        "totalprice": 111,
+        "depositpaid": True,
+        "bookingdates": {
+            "checkin": "2022-01-01",
+            "checkout": "2022-01-02"
+        },
+        "additionalneeds": "Breakfast"
+    }
+    response = requests.post(f"{BASE_URL}/booking", json=booking_data)
+    assert response.status_code == 200
+    assert "bookingid" in response.json()
+
+def test_create_booking_failure():
+    response = requests.post(f"{BASE_URL}/booking", json={})
+    assert response.status_code == 500
+
+# Booking - GetBooking tests
+def test_get_booking_success(auth_token):
+    # First, create a booking to ensure the booking ID exists
+    booking_data = {
+        "firstname": "Jim",
+        "lastname": "Brown",
+        "totalprice": 111,
+        "depositpaid": True,
+        "bookingdates": {
+            "checkin": "2022-01-01",
+            "checkout": "2022-01-02"
+        },
+        "additionalneeds": "Breakfast"
+    }
+    create_response = requests.post(f"{BASE_URL}/booking", json=booking_data)
+    assert create_response.status_code == 200
+    booking_id = create_response.json()["bookingid"]
+
+    # Now, get the booking
+    response = requests.get(f"{BASE_URL}/booking/{booking_id}")
+    assert response.status_code == 200
+    assert response.json()["firstname"] == "Jim"  # Adjust according to expected data
+
+def test_get_booking_failure():
+    booking_id = 999999  # Ensure this booking ID does not exist
+    response = requests.get(f"{BASE_URL}/booking/{booking_id}")
+    assert response.status_code == 404
